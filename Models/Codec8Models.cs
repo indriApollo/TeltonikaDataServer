@@ -4,6 +4,7 @@ public static class Codec8Constants
 {
     public const int IMEI_LENGTH = 15; // imei is always 15 chars
     public const ushort ACK_LENGTH = 5; // ack is always 5 bytes (ignoring first two packet length bytes)
+    public const ushort ACK_PACKET_SIZE = sizeof(ushort) + ACK_LENGTH;
 }
 
 public record class Codec8UdpHeader
@@ -24,6 +25,7 @@ public record class Codec8UdpAvlHeader
     public byte AvlPacketId { get; init; }
     public ushort ImeiLength { get; init; } // should always be 0x000F
     public byte[] Imei { get; init; } = null!;
+    public byte CodecId { get; init; }
     public byte AvlDataElementsCount { get; init; }
 }
 

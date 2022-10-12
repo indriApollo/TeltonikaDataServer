@@ -11,6 +11,9 @@ public static class Codec8Parser
 
         var header = ParseHeader(ref reader);
         var avlHeader = ParseAvlHeader(ref reader);
+        if (avlHeader.CodecId != 0x08) // XXX
+            throw new Exception("codec id is not 8");
+
         var avlDatas = ParseAvlDatas(ref reader, avlHeader.AvlDataElementsCount);
 
         return new()
@@ -35,7 +38,7 @@ public static class Codec8Parser
 
     public static byte[] SerializeAck(Codec8UdpAck ack)
     {
-        var stream = new MemoryStream(ack.PacketLength);
+        var stream = new MemoryStream(Codec8Constants.ACK_PACKET_SIZE);
 
         using (var writer = new BinaryWriter(stream))
         {
@@ -66,6 +69,7 @@ public static class Codec8Parser
             AvlPacketId = reader.ReadByte(),
             ImeiLength = reader.ReadUInt16(),
             Imei = reader.ReadByteArray(Codec8Constants.IMEI_LENGTH),
+            CodecId = reader.ReadByte(),
             AvlDataElementsCount = reader.ReadByte()
         };
     }

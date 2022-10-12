@@ -25,10 +25,12 @@ public class UdpServer : BackgroundService
         while (!stoppingToken.IsCancellationRequested)
         {
             var result = await udpClient.ReceiveAsync(stoppingToken);
+            _logger.LogDebug($"Got {result.Buffer.Length} bytes from {result.RemoteEndPoint}");
             var packet = Codec8Parser.Parse(result.Buffer);
             //
             var ack = Codec8Parser.BuildAck(packet);
-            await udpClient.SendAsync(Codec8Parser.SerializeAck(ack), ack.PacketLength, result.RemoteEndPoint);
+            var ackPayload = Codec8Parser.SerializeAck(ack);
+            await udpClient.SendAsync(ackPayload, ackPayload.Length, result.RemoteEndPoint);
         }
     }
 }
