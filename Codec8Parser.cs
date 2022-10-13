@@ -1,5 +1,5 @@
 using TeltonikaDataServer.Models;
-using System.Buffers.Binary;
+using TeltonikaDataServer.Utils;
 
 namespace TeltonikaDataServer;
 
@@ -7,7 +7,7 @@ public static class Codec8Parser
 {
     public static Codec8UdpPacket Parse(byte[] buffer)
     {
-        var reader = new ReadOnlySpanByteReader(buffer);
+        var reader = new SpanByteReader(buffer);
 
         var header = ParseHeader(ref reader);
         var avlHeader = ParseAvlHeader(ref reader);
@@ -38,21 +38,20 @@ public static class Codec8Parser
 
     public static byte[] SerializeAck(Codec8UdpAck ack)
     {
-        var stream = new MemoryStream(Codec8Constants.ACK_PACKET_SIZE);
+        byte[] buffer = new byte[Codec8Constants.ACK_PACKET_SIZE];
 
-        using (var writer = new BinaryWriter(stream))
-        {
-            writer.Write(ack.PacketLength);
-            writer.Write(ack.PacketId);
-            writer.Write(ack.UnusedByte);
-            writer.Write(ack.AvlPacketId);
-            writer.Write(ack.AcceptedAvlDataElementsCount);
-        }
+        var writer = new SpanByteWriter(buffer);
 
-        return stream.GetBuffer();
+        writer.WriteUInt16(ack.PacketLength);
+        writer.WriteUInt16(ack.PacketId);
+        writer.WriteByte(ack.UnusedByte);
+        writer.WriteByte(ack.AvlPacketId);
+        writer.WriteByte(ack.AcceptedAvlDataElementsCount);
+
+        return buffer;
     }
 
-    private static Codec8UdpHeader ParseHeader(ref ReadOnlySpanByteReader reader)
+    private static Codec8UdpHeader ParseHeader(ref SpanByteReader reader)
     {
         return new()
         {
@@ -62,7 +61,7 @@ public static class Codec8Parser
         };
     }
 
-    private static Codec8UdpAvlHeader ParseAvlHeader(ref ReadOnlySpanByteReader reader)
+    private static Codec8UdpAvlHeader ParseAvlHeader(ref SpanByteReader reader)
     {
         return new()
         {
@@ -74,7 +73,7 @@ public static class Codec8Parser
         };
     }
 
-    private static List<Codec8UdpAvlData> ParseAvlDatas(ref ReadOnlySpanByteReader reader, byte avlDataElementsCount)
+    private static List<Codec8UdpAvlData> ParseAvlDatas(ref SpanByteReader reader, byte avlDataElementsCount)
     {
         List<Codec8UdpAvlData> avlDatas = new();
 
@@ -86,8 +85,8 @@ public static class Codec8Parser
         return avlDatas;
     }
 
-    private delegate T ReadValue<T>(ref ReadOnlySpanByteReader reader);
-    private static Codec8UdpAvlData ParseAvlData(ref ReadOnlySpanByteReader reader)
+    private delegate T ReadValue<T>(ref SpanByteReader reader);
+    private static Codec8UdpAvlData ParseAvlData(ref SpanByteReader reader)
     {
         ulong timestamp = reader.ReadUint64();
         byte priority = reader.ReadByte();
@@ -103,16 +102,16 @@ public static class Codec8Parser
         byte ioTotalElementsCount = reader.ReadByte();
 
         byte singleByteIoElementsCount = reader.ReadByte();
-        List<Codec8UdpIoElement<byte>> singleByteIoElements = ParseIoElements<byte>(ref reader, (ref ReadOnlySpanByteReader reader) => reader.ReadByte(), singleByteIoElementsCount);
+        List<Codec8UdpIoElement<byte>> singleByteIoElements = ParseIoElements<byte>(ref reader, (ref SpanByteReader reader) => reader.ReadByte(), singleByteIoElementsCount);
 
         byte twoBytesIoElementsCount = reader.ReadByte();
-        List<Codec8UdpIoElement<ushort>> twoBytesIoElements = ParseIoElements<ushort>(ref reader, (ref ReadOnlySpanByteReader reader) => reader.ReadUInt16(), twoBytesIoElementsCount);
+        List<Codec8UdpIoElement<ushort>> twoBytesIoElements = ParseIoElements<ushort>(ref reader, (ref SpanByteReader reader) => reader.ReadUInt16(), twoBytesIoElementsCount);
 
         byte fourBytesIoElementsCount = reader.ReadByte();
-        List<Codec8UdpIoElement<uint>> fourBytesIoElements = ParseIoElements<uint>(ref reader, (ref ReadOnlySpanByteReader reader) => reader.ReadUInt32(), fourBytesIoElementsCount);
+        List<Codec8UdpIoElement<uint>> fourBytesIoElements = ParseIoElements<uint>(ref reader, (ref SpanByteReader reader) => reader.ReadUInt32(), fourBytesIoElementsCount);
 
         byte eightBytesIoElementsCount = reader.ReadByte();
-        List<Codec8UdpIoElement<ulong>> eightBytesIoElements = ParseIoElements<ulong>(ref reader, (ref ReadOnlySpanByteReader reader) => reader.ReadUint64(), eightBytesIoElementsCount);
+        List<Codec8UdpIoElement<ulong>> eightBytesIoElements = ParseIoElements<ulong>(ref reader, (ref SpanByteReader reader) => reader.ReadUint64(), eightBytesIoElementsCount);
 
         return new()
         {
@@ -137,7 +136,7 @@ public static class Codec8Parser
         };
     }
 
-    private static List<Codec8UdpIoElement<T>> ParseIoElements<T>(ref ReadOnlySpanByteReader reader, ReadValue<T> readValue, byte count) where T : unmanaged
+    private static List<Codec8UdpIoElement<T>> ParseIoElements<T>(ref SpanByteReader reader, ReadValue<T> readValue, byte count) where T : unmanaged
     {
         List<Codec8UdpIoElement<T>> ioElements = new();
 
@@ -152,63 +151,5 @@ public static class Codec8Parser
         }
 
         return ioElements;
-    }
-
-    private ref struct ReadOnlySpanByteReader
-    {
-        private int index;
-        private readonly ReadOnlySpan<byte> span;
-
-        public ReadOnlySpanByteReader(byte[] buffer)
-        {
-            index = 0;
-            span = new ReadOnlySpan<byte>(buffer);
-        }
-
-        public byte ReadByte()
-        {
-            byte result = span[index];
-            index++;
-            return result;
-        }
-
-        public byte[] ReadByteArray(int arrayLength)
-        {
-            byte[] result = span.Slice(index, arrayLength).ToArray();
-            index += arrayLength;
-            return result;
-        }
-
-        public ushort ReadUInt16()
-        {
-            const int typeSize = sizeof(ushort);
-            ushort result = BinaryPrimitives.ReadUInt16BigEndian(span.Slice(index, typeSize));
-            index += typeSize;
-            return result;
-        }
-
-        public int ReadInt32()
-        {
-            const int typeSize = sizeof(int);
-            int result = BinaryPrimitives.ReadInt32BigEndian(span.Slice(index, typeSize));
-            index += typeSize;
-            return result;
-        }
-
-        public uint ReadUInt32()
-        {
-            const int typeSize = sizeof(uint);
-            uint result = BinaryPrimitives.ReadUInt32BigEndian(span.Slice(index, typeSize));
-            index += typeSize;
-            return result;
-        }
-
-        public ulong ReadUint64()
-        {
-            const int typeSize = sizeof(ulong);
-            ulong result = BinaryPrimitives.ReadUInt64BigEndian(span.Slice(index, typeSize));
-            index += typeSize;
-            return result;
-        }
     }
 }
