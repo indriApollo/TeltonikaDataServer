@@ -7,11 +7,13 @@ public class UdpServer : BackgroundService
 {
     private readonly ILogger<UdpServer> _logger;
     private readonly IConfiguration _config;
+    private readonly TeltonikaDataHandler _dataHandler;
 
-    public UdpServer(ILogger<UdpServer> logger, IConfiguration config)
+    public UdpServer(ILogger<UdpServer> logger, IConfiguration config, TeltonikaDataHandler dataHandler)
     {
         _logger = logger;
         _config = config;
+        _dataHandler = dataHandler;
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -38,7 +40,17 @@ public class UdpServer : BackgroundService
             }
             else
             {
-                // do stuff
+                // XXX
+                _ = Task.Run(async () => {
+                    try
+                    {
+                        await _dataHandler.Handle(packet);
+                    }
+                    catch (Exception e)
+                    {
+                        _logger.LogError(e, "handler exception");
+                    }
+                });
             }
 
             var ack = Codec8Parser.BuildAck(packet);
