@@ -1,30 +1,29 @@
 using System.Net;
 using System.Net.Sockets;
+using TeltonikaDataServer.Config;
+using Microsoft.Extensions.Options;
 
 namespace TeltonikaDataServer;
 
 public class UdpServer : BackgroundService
 {
     private readonly ILogger<UdpServer> _logger;
-    private readonly IConfiguration _config;
+    private readonly ServerOptions _config;
     private readonly TeltonikaDataHandler _dataHandler;
 
-    public UdpServer(ILogger<UdpServer> logger, IConfiguration config, TeltonikaDataHandler dataHandler)
+    public UdpServer(ILogger<UdpServer> logger, IOptions<ServerOptions> options, TeltonikaDataHandler dataHandler)
     {
         _logger = logger;
-        _config = config;
+        _config = options.Value;
         _dataHandler = dataHandler;
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        var packetIdCache = new PacketIdCache(1000);
+        var packetIdCache = new PacketIdCache(_config.PacketIdCacheSize);
 
-        string ip = _config.GetValue<string?>("Ip") ?? "0.0.0.0";
-        ushort port = _config.GetValue<ushort?>("Port") ?? 8160;
-
-        _logger.LogInformation($"Listening on UDP {ip}:{port}");
-        UdpClient udpClient = new UdpClient(new IPEndPoint(IPAddress.Parse(ip), port));
+        _logger.LogInformation($"Listening on UDP {_config.Ip}:{_config.Port}");
+        UdpClient udpClient = new UdpClient(new IPEndPoint(IPAddress.Parse(_config.Ip), _config.Port));
 
         while (!stoppingToken.IsCancellationRequested)
         {

@@ -1,5 +1,7 @@
 using System.Data;
 using Npgsql;
+using Microsoft.Extensions.Options;
+using TeltonikaDataServer.Config;
 
 namespace TeltonikaDataServer.Services;
 
@@ -7,9 +9,9 @@ public class Database
 {
     private readonly string _connectionString;
     
-    public Database(IConfiguration config)
+    public Database(IOptions<DatabaseOptions> options)
     {
-        _connectionString = config.GetValue<string>("DbConnString");
+        _connectionString = options.Value.ConnectionString;
     }
 
     public IDbConnection GetConnection(string connectionString)
