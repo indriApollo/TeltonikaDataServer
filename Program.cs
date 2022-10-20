@@ -7,7 +7,7 @@ IHost host = Host.CreateDefaultBuilder(args)
     {
         services.Configure<DatabaseOptions>(context.Configuration.GetSection(DatabaseOptions.Database));
         services.Configure<ServerOptions>(context.Configuration.GetSection(ServerOptions.Server));
-        
+
         services.AddSingleton<Database>();
         services.AddSingleton<TelematicsDataRepository>();
         services.AddSingleton<TeltonikaDataHandler>();
