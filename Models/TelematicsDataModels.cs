@@ -10,3 +10,10 @@ public class GpsPositionIn
     public DateTime TimestampUtc { get; set; }
     public int DevId { get; set; }
 }
+
+public class ExternalVoltageIn
+{
+    public short Value { get; set; } // 0.01 precision
+    public DateTime TimestampUtc { get; set; }
+    public int DevId { get; set; }
+}

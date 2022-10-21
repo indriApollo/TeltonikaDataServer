@@ -1,7 +1,9 @@
 using TeltonikaDataServer.Services;
 using TeltonikaDataServer.Models;
+using TeltonikaDataServer.Config;
 using Dapper;
 using Microsoft.Extensions.Caching.Memory;
+using Microsoft.Extensions.Options;
 
 namespace TeltonikaDataServer;
 
@@ -10,11 +12,10 @@ public class TelematicsDataRepository
     private readonly Database _db;
     private readonly MemoryCache _cache;
 
-    public TelematicsDataRepository(Database db, IConfiguration config)
+    public TelematicsDataRepository(Database db, IOptions<DatabaseOptions> options)
     {
         _db = db;
-        long sizeLimit = config.GetValue<long?>("DbCacheSize") ?? 1000;
-        _cache = new MemoryCache(new MemoryCacheOptions { SizeLimit = sizeLimit });
+        _cache = new MemoryCache(new MemoryCacheOptions { SizeLimit = options.Value.DbCacheSize });
     }
 
     public async Task StoreGpsPosition(GpsPositionIn gpsPositionIn)
@@ -41,6 +42,25 @@ public class TelematicsDataRepository
         using (var conn = _db.GetConnection())
         {
             await conn.ExecuteAsync(query, gpsPositionIn);
+        }
+    }
+
+    public async Task StoreExternalVoltage(ExternalVoltageIn externalVoltageIn)
+    {
+        const string query = @"
+        INSERT INTO telematics.external_voltage (
+            exv_value,
+            exv_timestamp_utc,
+            exv_dev_id
+        ) VALUES (
+            @Value,
+            @TimestampUtc,
+            @DevId
+        )";
+
+        using (var conn = _db.GetConnection())
+        {
+            await conn.ExecuteAsync(query, externalVoltageIn);
         }
     }
 
