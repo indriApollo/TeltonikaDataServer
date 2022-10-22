@@ -1,0 +1,5 @@
+version: '3'
+services:
+  dataserver:
+    image: ghcr.io/indriapollo/teltonika-dataserver:1.0.0
+    build: .
