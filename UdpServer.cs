@@ -36,6 +36,7 @@ public class UdpServer : BackgroundService
                 var packet = Codec8Parser.Parse(result.Buffer);
 
                 byte? latestAvlPacketId = packetIdCache.GetLatestPacketId(packet.AvlHeader.Imei);
+                _logger.LogDebug($"PacketId {packet.Header.PacketId} AvlPacketId {packet.AvlHeader.AvlPacketId}");
                 // skip processing if duplicate packet (UDP acks can get lost)
                 if (latestAvlPacketId.HasValue && latestAvlPacketId == packet.AvlHeader.AvlPacketId)
                 {
@@ -57,7 +58,7 @@ public class UdpServer : BackgroundService
         finally
         {
             RemoveCompletedHandlerTasks();
-            _logger.LogInformation($"awaiting {_handlerTasks.Count} handler tasks");
+            _logger.LogInformation($"Awaiting {_handlerTasks.Count} handler tasks");
             await Task.WhenAll(_handlerTasks);
         }
     }
@@ -78,7 +79,7 @@ public class UdpServer : BackgroundService
         }
         catch (Exception e)
         {
-            _logger.LogError(e, "handler exception");
+            _logger.LogError(e, "Handler exception");
         }
     }
 }
